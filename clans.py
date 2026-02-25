@@ -5,12 +5,17 @@
 
 import os
 path = os.getenv('APPDATA')+'\\..\\LocalLow\\Second Dinner\\SNAP\\Standalone\\States\\nvprod\\ClanState.json'
+print(path)
 import json
 
-# For some reason, the first couple of character are wonky?
+# For some reason, the first line is wonky?
+# I assume it's some sort of header, but I don't know how to parse it. 
 # If someone knows more, I'd love to learn what's up here. 
 f = open(path)
-text = f.read()[3:]
+lines = f.readlines()
+text = "{"
+for line in lines[1:]:
+    text += line
 f.close()
 
 data = json.loads(text)
@@ -42,22 +47,31 @@ for player in data["ServerState"]['Members']:
         
     members[name] = totals
 
+longestName = min(longestName, 16)
+
 #sort and prepare the list of weeks
 weekList = list(weeks)
 weekList.sort()
 weekList = weekList[:-1] #skip the current, incomplete week
 weeklyTotals = [0]*len(weekList)
 
+# Currently all squished to fit into a single Discord message
+columnWidth = 7
+
 #set up the headers
 out = "Name"+ " "*(longestName-4) #line up the columns
 for week in weekList:
-    out += "   " + week[5:] #just month and day
-out += "   Average <2k"
+    out += " "*(columnWidth-5) + week[5:] #just month and day
+out += " Average <"
 
+numFormat = "{:>"+str(columnWidth)+"n}"
+decimalFormat = "{:>"+str(columnWidth+1)+".1f}"
 #and now, fill in the data
 for name in members:
     pointsByWeek = members[name]
-    out += "\n" + name + " "*(longestName-len(name)) # same alignment deal
+    
+    out += "\n" + name[:longestName] #cap to fit in one Discord message
+    out += " "*(longestName-len(name)) # same alignment deal
 
     weekCount = 0
     totalPoints = 0
@@ -67,7 +81,7 @@ for name in members:
         week = weekList[i]
         # Once they've started in the alliance
         if week in pointsByWeek and (pointsByWeek[week]> 0 or weekCount > 0):
-            out += "{:>8n}".format(pointsByWeek[week])
+            out += numFormat.format(pointsByWeek[week])
 
             weekCount += 1
             totalPoints += pointsByWeek[week]
@@ -77,7 +91,7 @@ for name in members:
 
         # if they full skipped a week
         elif weekCount > 0:
-            out += "{:>8n}".format(0)
+            out += numFormat.format(0)
 
             weekCount += 1
             totalPoints += 0
@@ -85,22 +99,18 @@ for name in members:
             
         # before they joined  
         else:
-            out += " " * 8
+            out += " " * columnWidth
     
 
     if weekCount > 0:
-        out += "{:>10.2f}".format(totalPoints/weekCount)
-    else:
-        out += " "*10
+        out += decimalFormat.format(totalPoints/weekCount)
 
-    if below2k > 0:
-        out += "{:>3n} ".format(below2k)
-    else:
-        out +=  " "*4
+        if below2k > 0:
+            out += "{:>2n} ".format(below2k)
 
 out += "\nTotal"+" "*(longestName-5)
 for i in range(len(weekList)):
-    out += "{:>8n}".format(weeklyTotals[i])
+    out += numFormat.format(weeklyTotals[i])
 
 print(out)
 
